@@ -20,7 +20,7 @@ type TaskListResult struct {
 }
 
 func DiscoverTasks(taskfilePath string) ([]string, error) {
-	slog.Info("Running command", "cmd", "task --list-all --taskfile "+taskfilePath)
+	slog.Info("Running command", "cmd", "task --list --taskfile "+taskfilePath)
 	cmd := exec.Command("task", "--list", "--taskfile", taskfilePath)
 
 	var out bytes.Buffer
