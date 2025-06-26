@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/zac/omcp/cmd"
+	"github.com/sandwichlabs/mcp-task-bridge/cmd"
 )
 
 func main() {

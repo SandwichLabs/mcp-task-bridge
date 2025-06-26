@@ -9,7 +9,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/zac/omcp/internal/inspector"
+	"github.com/sandwichlabs/mcp-task-bridge/internal/inspector"
 )
 
 func TranslateToMCPTools(config *inspector.MCPConfig) []*mcp.Tool {

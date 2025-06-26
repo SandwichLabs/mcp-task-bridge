@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/sandwichlabs/mcp-task-bridge/internal/inspector"
 	"github.com/spf13/cobra"
-	"github.com/zac/omcp/internal/inspector"
 )
 
 var inspectCmd = &cobra.Command{

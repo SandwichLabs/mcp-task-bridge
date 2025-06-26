@@ -85,13 +85,13 @@ This command internally runs `inspect` and then displays the MCP configuration i
 To install `omcp`, ensure you have Go installed and configured.
 
 ```bash
-go install github.com/zac/omcp@latest
+go install github.com/sandwichlabs/mcp-task-bridge@latest
 ```
 
 Alternatively, you can clone the repository and build from source:
 
 ```bash
-git clone https://github.com/zac/omcp.git
+git clone https://github.com/sandwichlabs/mcp-task-bridge.git
 cd omcp
 go build -o omcp .
 ```

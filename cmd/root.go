@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sandwichlabs/mcp-task-bridge/internal/server"
 	"github.com/spf13/cobra"
-	"github.com/zac/omcp/internal/server"
 )
 
 var rootCmd = &cobra.Command{

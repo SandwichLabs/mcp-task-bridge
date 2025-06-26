@@ -1,4 +1,4 @@
-module github.com/zac/omcp
+module github.com/sandwichlabs/mcp-task-bridge
 
 go 1.24.4
 
