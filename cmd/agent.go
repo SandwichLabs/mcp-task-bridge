@@ -7,9 +7,12 @@ import (
 	"os/exec"
 	"strings"
 
+	"os"
+
 	"github.com/sandwichlabs/mcp-task-bridge/internal/inspector"
 	"github.com/spf13/cobra"
 	"github.com/tmc/langchaingo/agents"
+	"github.com/tmc/langchaingo/llms/anthropic"
 	"github.com/tmc/langchaingo/llms/openai"
 	"github.com/tmc/langchaingo/tools"
 )
@@ -29,8 +32,8 @@ var (
 )
 
 func init() {
-	agentCmd.Flags().StringVar(&provider, "provider", "openai", "LLM provider (e.g., openai, anthropic)")
-	agentCmd.Flags().StringVar(&modelName, "model-name", "gpt-3.5-turbo", "Name of the model to use")
+	agentCmd.Flags().StringVar(&provider, "provider", "anthropic", "LLM provider (e.g., anthropic, openai)")
+	agentCmd.Flags().StringVar(&modelName, "model-name", "claude-3-sonnet-20240229", "Name of the model to use")
 	agentCmd.Flags().Float64Var(&temperature, "temperature", 0.7, "Sampling temperature for the LLM")
 	agentCmd.Flags().IntVar(&maxTokens, "max-tokens", 256, "Maximum number of tokens to generate")
 
@@ -73,6 +76,24 @@ func runAgent(cmd *cobra.Command, args []string) {
 			return
 		}
 		slog.Info("OpenAI LLM initialized", "model", modelName, "temperature", temperature, "max_tokens", maxTokens)
+	} else if provider == "anthropic" {
+		anthropicOptions := []anthropic.Option{
+			anthropic.WithModel(modelName),
+			anthropic.WithToken(getAnthropicToken()),
+		}
+		if temperature != 0.0 {
+			anthropicOptions = append(anthropicOptions, anthropic.WithTemperature(temperature))
+		}
+		if maxTokens != 0 {
+			anthropicOptions = append(anthropicOptions, anthropic.WithMaxTokens(maxTokens))
+		}
+		// anthropic.New requires a *http.Client, passing nil uses default
+		llm, err = anthropic.New(anthropicOptions...)
+		if err != nil {
+			slog.Error("Failed to initialize Anthropic LLM", "error", err)
+			return
+		}
+		slog.Info("Anthropic LLM initialized", "model", modelName, "temperature", temperature, "max_tokens", maxTokens)
 	} else {
 		slog.Error("Unsupported LLM provider", "provider", provider)
 		// For now, we exit or handle the error. In the future, more providers can be added.
@@ -164,6 +185,16 @@ func getOpenAIToken() string {
 	if token == "" {
 		slog.Warn("OPENAI_API_KEY environment variable not set. Using placeholder. Please configure it for actual use.")
 		return "sk-your-api-key-placeholder" // Placeholder if not set
+	}
+	return token
+}
+
+func getAnthropicToken() string {
+	token := os.Getenv("ANTHROPIC_API_KEY")
+	if token == "" {
+		slog.Warn("ANTHROPIC_API_KEY environment variable not set. Using placeholder. Please configure it for actual use.")
+		// Anthropic keys don't typically start with "sk-" but providing a distinct placeholder
+		return "anthropic-api-key-placeholder"
 	}
 	return token
 }
