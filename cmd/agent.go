@@ -18,6 +18,12 @@ import (
 	// react "github.com/tmc/langchaingo/agents/react" // Example if react agent was to be used
 )
 
+// Function variables for LLM constructors to allow mocking in tests
+var (
+	newOpenAIFn    = openai.New
+	newAnthropicFn = anthropic.New
+)
+
 // taskExecutorTool implements the tools.Tool interface
 type taskExecutorTool struct {
 	taskName        string
@@ -117,7 +123,7 @@ func runAgent(cmd *cobra.Command, args []string) {
 			openai.WithToken(getOpenAIToken()),
 			openai.WithModel(modelName), // Model name for the client
 		}
-		llm, err = openai.New(opts...) // Or openai.NewLLM if that's the constructor for v0.1.13
+		llm, err = newOpenAIFn(opts...) // Use the function variable
 		if err != nil {
 			slog.Error("Failed to initialize OpenAI LLM", "error", err)
 			return
@@ -128,7 +134,7 @@ func runAgent(cmd *cobra.Command, args []string) {
 			anthropic.WithToken(getAnthropicToken()),
 			anthropic.WithModel(modelName), // Model name for the client
 		}
-		llm, err = anthropic.New(opts...)
+		llm, err = newAnthropicFn(opts...) // Use the function variable
 		if err != nil {
 			slog.Error("Failed to initialize Anthropic LLM", "error", err)
 			return
