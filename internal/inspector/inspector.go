@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// cmdExec is a package-level variable that can be swapped out for testing.
+var cmdExec = exec.Command
+
 type TaskResult struct {
 	Name        string `json:"name"`
 	TaskKey     string `json:"task"`
@@ -22,7 +25,7 @@ type TaskListResult struct {
 
 func DiscoverTasks(taskfilePath string) ([]string, error) {
 	slog.Info("Discovering tasks in", "path", taskfilePath)
-	cmd := exec.Command("task", "--list", "--json", "--taskfile", taskfilePath)
+	cmd := cmdExec("task", "--list", "--json", "--taskfile", taskfilePath)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -49,7 +52,7 @@ func DiscoverTasks(taskfilePath string) ([]string, error) {
 
 func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
 	slog.Info("Getting details for", "task", taskName)
-	cmd := exec.Command("task", taskName, "--summary", "--taskfile", taskfilePath)
+	cmd := cmdExec("task", taskName, "--summary", "--taskfile", taskfilePath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
