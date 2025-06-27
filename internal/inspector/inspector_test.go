@@ -340,13 +340,31 @@ func TestInspect(t *testing.T) {
 
 		// Setup cmdExec to use the mockCommands map
 		cmdExec = func(command string, args ...string) *exec.Cmd {
-			cmdStr := command + " " + strings.Join(args, " ")
-			if mock, ok := mockCommands[cmdStr]; ok {
+			var keyToLookup string
+
+			// Check for "task --list --json"
+			// args might be: ["--list", "--json", "-d", "/path/to/dir"]
+			if len(args) >= 2 && args[0] == "--list" && args[1] == "--json" {
+				keyToLookup = command + " " + args[0] + " " + args[1] // e.g., "task --list --json"
+			}
+
+			// Check for "<taskName> --summary" called as "task <taskName> --summary"
+			// args might be: ["task1", "--summary", "-d", "/path/to/dir"]
+			// The map keys are "task1 --summary", "task2 --summary".
+			if len(args) >= 2 && command == "task" && args[1] == "--summary" {
+				// args[0] is the task name, e.g., "task1"
+				// args[1] is "--summary"
+				keyToLookup = args[0] + " " + args[1] // e.g., "task1 --summary"
+			}
+
+			if mock, ok := mockCommands[keyToLookup]; ok {
 				cs := []string{"-test.run=TestHelperProcess", "--"}
 				cmd := originalCmdExec(os.Args[0], cs...)
 				cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "STDOUT="+mock.stdout, "EXIT_CODE="+mock.exitCode)
 				return cmd
 			}
+
+			t.Logf("Unmocked command in TestInspect/successful_inspection (or mock key mismatch): command='%s', args=%v, constructed_key='%s'", command, args, keyToLookup)
 			// Fallback for any other command
 			return originalCmdExec(command, args...)
 		}
