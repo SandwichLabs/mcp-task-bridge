@@ -21,7 +21,7 @@ type TaskListResult struct {
 }
 
 func DiscoverTasks(taskfilePath string) ([]string, error) {
-	slog.Debug("Running command", "cmd", "task --list --json --taskfile "+taskfilePath)
+	slog.Info("Discovering tasks in", "path", taskfilePath)
 	cmd := exec.Command("task", "--list", "--json", "--taskfile", taskfilePath)
 
 	var out bytes.Buffer
@@ -32,7 +32,7 @@ func DiscoverTasks(taskfilePath string) ([]string, error) {
 		return nil, err
 	}
 
-	slog.Debug("Command output", "output", out.String())
+	slog.Info("Marshalling json output")
 	var taskListResult TaskListResult
 	if err := json.Unmarshal(out.Bytes(), &taskListResult); err != nil {
 		slog.Error("Error unmarshalling JSON from task list", "error", err)
@@ -43,12 +43,12 @@ func DiscoverTasks(taskfilePath string) ([]string, error) {
 	for _, task := range taskListResult.Tasks {
 		tasks = append(tasks, task.Name)
 	}
-	slog.Debug("Discovered tasks", "tasks", tasks)
+	slog.Info("Discovered tasks", "task_count", len(tasks))
 	return tasks, nil
 }
 
 func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
-	slog.Debug("Running command to get task details", "cmd", "task "+taskName+" --summary --taskfile "+taskfilePath)
+	slog.Info("Getting details for", "task", taskName)
 	cmd := exec.Command("task", taskName, "--summary", "--taskfile", taskfilePath)
 	var out bytes.Buffer
 	cmd.Stdout = &out

@@ -9,9 +9,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "omcp [Taskfile]",
+	Use:   "tmcp [Taskfile]",
 	Short: "A CLI to bridge Taskfiles with MCP.",
-	Long:  `omcp is a command-line tool that evaluates a Taskfile and exposes its tasks as MCP functions.`,
+	Long:  `tmcp is a command-line tool that evaluates a Taskfile and exposes its tasks as MCP functions.`,
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		server.Run(args[0])

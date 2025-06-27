@@ -12,7 +12,7 @@ import (
 	"github.com/sandwichlabs/mcp-task-bridge/internal/inspector"
 )
 
-func TranslateToMCPTools(config *inspector.MCPConfig) []*mcp.Tool {
+func TranslateTtmcpTools(config *inspector.MCPConfig) []*mcp.Tool {
 	var tools []*mcp.Tool
 	for _, task := range config.Tasks {
 		var toolOptions []mcp.ToolOption
@@ -55,10 +55,10 @@ func Run(taskfilePath string) {
 		log.Fatalf("Error inspecting Taskfile: %v", err)
 	}
 
-	tools := TranslateToMCPTools(config)
+	tools := TranslateTtmcpTools(config)
 	handler := createTaskHandler(taskfilePath)
 
-	s := server.NewMCPServer("omcp", "1.0.0")
+	s := server.NewMCPServer("tasks", "1.0.0")
 	for _, tool := range tools {
 		s.AddTool(*tool, handler) // Dereference tool
 	}
