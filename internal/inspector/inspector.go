@@ -21,8 +21,8 @@ type TaskListResult struct {
 }
 
 func DiscoverTasks(taskfilePath string) ([]string, error) {
-	slog.Info("Running command", "cmd", "./bin/task --list --json --taskfile "+taskfilePath)
-	cmd := exec.Command("./bin/task", "--list", "--json", "--taskfile", taskfilePath)
+	slog.Debug("Running command", "cmd", "task --list --json --taskfile "+taskfilePath)
+	cmd := exec.Command("task", "--list", "--json", "--taskfile", taskfilePath)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -32,7 +32,7 @@ func DiscoverTasks(taskfilePath string) ([]string, error) {
 		return nil, err
 	}
 
-	slog.Info("Command output", "output", out.String())
+	slog.Debug("Command output", "output", out.String())
 	var taskListResult TaskListResult
 	if err := json.Unmarshal(out.Bytes(), &taskListResult); err != nil {
 		slog.Error("Error unmarshalling JSON from task list", "error", err)
@@ -43,13 +43,13 @@ func DiscoverTasks(taskfilePath string) ([]string, error) {
 	for _, task := range taskListResult.Tasks {
 		tasks = append(tasks, task.Name)
 	}
-	slog.Info("Discovered tasks", "tasks", tasks)
+	slog.Debug("Discovered tasks", "tasks", tasks)
 	return tasks, nil
 }
 
 func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
-	slog.Info("Running command to get task details", "cmd", "./bin/task "+taskName+" --summary --taskfile "+taskfilePath)
-	cmd := exec.Command("./bin/task", taskName, "--summary", "--taskfile", taskfilePath)
+	slog.Debug("Running command to get task details", "cmd", "task "+taskName+" --summary --taskfile "+taskfilePath)
+	cmd := exec.Command("task", taskName, "--summary", "--taskfile", taskfilePath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
@@ -62,7 +62,7 @@ func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
 	parsingState := ""
 
 	for _, line := range lines {
-		slog.Info("Processing line", "line", line)
+		slog.Debug("Processing line", "line", line)
 
 		if strings.HasPrefix(line, "task: ") {
 			continue
@@ -83,7 +83,7 @@ func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
 	}
 
 	details.Description = strings.TrimSpace(details.Description)
-	slog.Info("Parsed task details", "taskName", taskName, "description", details.Description, "usage", details.Usage)
+	slog.Debug("Parsed task details", "taskName", taskName, "description", details.Description, "usage", details.Usage)
 	// Basic parameter parsing from Usage line
 	if strings.Contains(details.Usage, "=") {
 		parts := strings.Split(details.Usage, " ")
