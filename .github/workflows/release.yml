@@ -17,7 +17,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: "1.20" # Replace with your project's Go version
+          go-version: "1.24" # Replace with your project's Go version
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
@@ -26,4 +26,4 @@ jobs:
           version: latest
           args: release --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
