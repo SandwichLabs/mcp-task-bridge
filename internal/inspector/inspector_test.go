@@ -319,25 +319,32 @@ func TestInspect(t *testing.T) {
 		// Store original cmdExec to restore it between setups
 		originalCmdExecForInspect := cmdExec
 
-		// Setup for DiscoverTasks
+		// Define a map of expected commands to their mock outputs and exit codes
+		mockCommands := map[string]struct {
+			stdout    string
+			exitCode  string
+		}{
+			"task --list --json": {
+				stdout:   `{"tasks": [{"name": "task1"}, {"name": "task2"}]}`,
+				exitCode: "0",
+			},
+			"task1 --summary": {
+				stdout:   "task: task1\nDesc 1\nUsage: Usage 1",
+				exitCode: "0",
+			},
+			"task2 --summary": {
+				stdout:   "task: task2\nDesc 2\nUsage: Usage 2",
+				exitCode: "0",
+			},
+		}
+
+		// Setup cmdExec to use the mockCommands map
 		cmdExec = func(command string, args ...string) *exec.Cmd {
 			cmdStr := command + " " + strings.Join(args, " ")
-			if strings.Contains(cmdStr, "task --list --json") {
+			if mock, ok := mockCommands[cmdStr]; ok {
 				cs := []string{"-test.run=TestHelperProcess", "--"}
 				cmd := originalCmdExec(os.Args[0], cs...)
-				cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "STDOUT="+`{"tasks": [{"name": "task1"}, {"name": "task2"}]}`, "EXIT_CODE=0")
-				return cmd
-			}
-			if strings.Contains(cmdStr, "task1 --summary") {
-				cs := []string{"-test.run=TestHelperProcess", "--"}
-				cmd := originalCmdExec(os.Args[0], cs...)
-				cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "STDOUT="+"task: task1\nDesc 1\nUsage: Usage 1", "EXIT_CODE=0")
-				return cmd
-			}
-			if strings.Contains(cmdStr, "task2 --summary") {
-				cs := []string{"-test.run=TestHelperProcess", "--"}
-				cmd := originalCmdExec(os.Args[0], cs...)
-				cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "STDOUT="+"task: task2\nDesc 2\nUsage: Usage 2", "EXIT_CODE=0")
+				cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "STDOUT="+mock.stdout, "EXIT_CODE="+mock.exitCode)
 				return cmd
 			}
 			// Fallback for any other command
