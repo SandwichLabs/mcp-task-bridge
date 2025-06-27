@@ -2,6 +2,7 @@ package inspector
 
 import (
 	"bytes"
+	"encoding/json"
 	"log/slog"
 	"os/exec"
 	"strings"
@@ -11,7 +12,7 @@ type TaskResult struct {
 	Name        string `json:"name"`
 	TaskKey     string `json:"task"`
 	Description string `json:"desc"`
-	Usage       string `json:"usage"`
+	Usage       string `json:"usage"` // This field is not directly available in --list --json, summary contains it.
 	Summary     string `json:"summary"`
 }
 
@@ -20,31 +21,34 @@ type TaskListResult struct {
 }
 
 func DiscoverTasks(taskfilePath string) ([]string, error) {
-	slog.Info("Running command", "cmd", "task --list --taskfile "+taskfilePath)
-	cmd := exec.Command("task", "--list", "--taskfile", taskfilePath)
+	slog.Debug("Running command", "cmd", "task --list --json --taskfile "+taskfilePath)
+	cmd := exec.Command("task", "--list", "--json", "--taskfile", taskfilePath)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		slog.Error("Error running task command", "error", err)
+		slog.Error("Error running task command", "error", err, "output", out.String())
 		return nil, err
 	}
-	lines := strings.Split(out.String(), "\n")
-	slog.Info("Command output", "output", out.String())
-	var tasks []string
-	for _, line := range lines {
-		if strings.HasPrefix(line, "* ") {
-			slog.Info("Found task", "line", line)
-			taskName := strings.Split(line, ":")[0]
-			tasks = append(tasks, strings.TrimSpace(strings.TrimPrefix(taskName, "* ")))
-		}
+
+	slog.Debug("Command output", "output", out.String())
+	var taskListResult TaskListResult
+	if err := json.Unmarshal(out.Bytes(), &taskListResult); err != nil {
+		slog.Error("Error unmarshalling JSON from task list", "error", err)
+		return nil, err
 	}
+
+	var tasks []string
+	for _, task := range taskListResult.Tasks {
+		tasks = append(tasks, task.Name)
+	}
+	slog.Debug("Discovered tasks", "tasks", tasks)
 	return tasks, nil
 }
 
 func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
-	slog.Info("Running command to get task details", "cmd", "task "+taskName+" --summary --taskfile "+taskfilePath)
+	slog.Debug("Running command to get task details", "cmd", "task "+taskName+" --summary --taskfile "+taskfilePath)
 	cmd := exec.Command("task", taskName, "--summary", "--taskfile", taskfilePath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -58,7 +62,7 @@ func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
 	parsingState := ""
 
 	for _, line := range lines {
-		slog.Info("Processing line", "line", line)
+		slog.Debug("Processing line", "line", line)
 
 		if strings.HasPrefix(line, "task: ") {
 			continue
@@ -79,7 +83,7 @@ func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
 	}
 
 	details.Description = strings.TrimSpace(details.Description)
-	slog.Info("Parsed task details", "taskName", taskName, "description", details.Description, "usage", details.Usage)
+	slog.Debug("Parsed task details", "taskName", taskName, "description", details.Description, "usage", details.Usage)
 	// Basic parameter parsing from Usage line
 	if strings.Contains(details.Usage, "=") {
 		parts := strings.Split(details.Usage, " ")
