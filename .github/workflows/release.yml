@@ -18,6 +18,8 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: "1.24" # Replace with your project's Go version
+      - name: Install Task
+        run: sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:

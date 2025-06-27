@@ -14,5 +14,8 @@ jobs:
         with:
           go-version: '1.24.4'
 
+      - name: Install Task
+        run: sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+
       - name: Run tests
         run: go test ./...
