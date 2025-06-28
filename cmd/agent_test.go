@@ -5,13 +5,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
+	// "strings" // No longer used directly
 	"testing"
 
 	"github.com/sandwichlabs/mcp-task-bridge/internal/inspector"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"github.com/tmc/langchaingo/llms" // Used for llms.Model, llms.CallOptions
+	// "github.com/tmc/langchaingo/llms" // No longer used directly in tests after refactor
 	"github.com/tmc/langchaingo/llms/anthropic"
 	"github.com/tmc/langchaingo/llms/openai"
 	// tools "github.com/tmc/langchaingo/tools" // tools.Tool is used as an interface type
@@ -37,14 +37,14 @@ func mockInspectError(_ string) (*inspector.MCPConfig, error) {
 
 // Variables to store original functions that will be mocked
 var (
-	originalNewOpenAIFn      func(...openai.Option) (*openai.LLM, error)
-	originalNewAnthropicFn   func(...anthropic.Option) (*anthropic.LLM, error)
-	originalInspectorInspect func(string) (*inspector.MCPConfig, error)
+	originalNewOpenAIFn    func(...openai.Option) (*openai.LLM, error)
+	originalNewAnthropicFn func(...anthropic.Option) (*anthropic.LLM, error)
+	originalInspectFunc    func(string) (*inspector.MCPConfig, error) // Changed name
 )
 
 func setupAgentTest(t *testing.T) {
 	// Store original functions before replacing them with mocks
-	originalInspectorInspect = inspector.Inspect
+	originalInspectFunc = inspector.InspectFunc // Use the new InspectFunc variable
 	originalNewOpenAIFn = newOpenAIFn
 	originalNewAnthropicFn = newAnthropicFn
 
@@ -53,8 +53,7 @@ func setupAgentTest(t *testing.T) {
 	capturedAnthropicOptions = nil
 
 	// Assign mocks
-	inspector.Inspect = mockInspect // This assumes inspector.Inspect is a package variable or can be swapped.
-	                                // If not, inspector calls cannot be easily mocked without an interface.
+	inspector.InspectFunc = mockInspect // Mock the new InspectFunc variable
 
 	newOpenAIFn = func(opts ...openai.Option) (*openai.LLM, error) {
 		capturedOpenAIOptions = opts
@@ -75,7 +74,7 @@ func setupAgentTest(t *testing.T) {
 
 func teardownAgentTest(t *testing.T) {
 	// Restore original functions
-	inspector.Inspect = originalInspectorInspect
+	inspector.InspectFunc = originalInspectFunc // Restore InspectFunc
 	newOpenAIFn = originalNewOpenAIFn
 	newAnthropicFn = originalNewAnthropicFn
 }
@@ -148,7 +147,7 @@ func TestAgentCommand_RunSuccess_OpenAI(t *testing.T) {
 func TestAgentCommand_InspectError(t *testing.T) {
 	setupAgentTest(t)
 	defer teardownAgentTest(t)
-	inspector.Inspect = mockInspectError // Mock inspector to return an error
+	inspector.InspectFunc = mockInspectError // Mock InspectFunc to return an error
 	testRootCmd := &cobra.Command{Use: "tmcp"}; testRootCmd.AddCommand(agentCmd)
 	output, _ := executeCommand(testRootCmd, "agent", "dummy.yml")
 	assert.Contains(t, output, "Failed to inspect Taskfile")

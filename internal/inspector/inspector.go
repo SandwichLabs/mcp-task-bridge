@@ -11,6 +11,9 @@ import (
 // cmdExec is a package-level variable that can be swapped out for testing.
 var cmdExec = exec.Command
 
+// InspectFunc is a function variable that can be swapped out for testing.
+var InspectFunc = Inspect
+
 type TaskResult struct {
 	Name        string `json:"name"`
 	TaskKey     string `json:"task"`
