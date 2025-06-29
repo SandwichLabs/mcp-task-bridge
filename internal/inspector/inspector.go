@@ -27,7 +27,7 @@ type TaskListResult struct {
 }
 
 func DiscoverTasks(taskfilePath string) ([]string, error) {
-	slog.Info("Discovering tasks in", "path", taskfilePath)
+	slog.Debug("Discovering tasks in", "path", taskfilePath)
 	cmd := cmdExec("task", "--list", "--json", "--taskfile", taskfilePath)
 
 	var out bytes.Buffer
@@ -38,7 +38,7 @@ func DiscoverTasks(taskfilePath string) ([]string, error) {
 		return nil, err
 	}
 
-	slog.Info("Marshalling json output")
+	slog.Debug("Marshalling json output")
 	var taskListResult TaskListResult
 	if err := json.Unmarshal(out.Bytes(), &taskListResult); err != nil {
 		slog.Error("Error unmarshalling JSON from task list", "error", err)
@@ -49,12 +49,12 @@ func DiscoverTasks(taskfilePath string) ([]string, error) {
 	for _, task := range taskListResult.Tasks {
 		tasks = append(tasks, task.Name)
 	}
-	slog.Info("Discovered tasks", "task_count", len(tasks))
+	slog.Debug("Discovered tasks", "task_count", len(tasks))
 	return tasks, nil
 }
 
 func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
-	slog.Info("Getting details for", "task", taskName)
+	slog.Debug("Getting details for", "task", taskName)
 	cmd := cmdExec("task", taskName, "--summary", "--taskfile", taskfilePath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
