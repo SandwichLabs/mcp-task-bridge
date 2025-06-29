@@ -88,9 +88,9 @@ var (
 
 func init() {
 	agentCmd.Flags().StringVar(&provider, "provider", "anthropic", "LLM provider (e.g., anthropic, openai)")
-	agentCmd.Flags().StringVar(&modelName, "model-name", "claude-3-sonnet-20240229", "Name of the model to use")
+	agentCmd.Flags().StringVar(&modelName, "model-name", "claude-3-5-sonnet-latest ", "Name of the model to use")
 	agentCmd.Flags().Float64Var(&temperature, "temperature", 0.7, "Sampling temperature for the LLM (0.0-1.0)")
-	agentCmd.Flags().IntVar(&maxTokens, "max-tokens", 256, "Maximum number of tokens to generate")
+	agentCmd.Flags().IntVar(&maxTokens, "max-tokens", 2000, "Maximum number of tokens to generate")
 	rootCmd.AddCommand(agentCmd)
 }
 
@@ -181,9 +181,15 @@ func runAgent(cmd *cobra.Command, args []string) {
 	fmt.Printf("Provider: %s\n", provider)
 	fmt.Printf("Model Name (configured in LLM client): %s\n", modelName)
 	fmt.Printf("LLM Call Options (for execution):\n")
-	if temperature > 0.0 { fmt.Printf("  Temperature: %f\n", temperature) }
-	if maxTokens > 0 { fmt.Printf("  Max Tokens: %d\n", maxTokens) }
-	if len(llmCallOpts) == 0 { fmt.Println("  (No specific call options like temp/max_tokens set via flags)")}
+	if temperature > 0.0 {
+		fmt.Printf("  Temperature: %f\n", temperature)
+	}
+	if maxTokens > 0 {
+		fmt.Printf("  Max Tokens: %d\n", maxTokens)
+	}
+	if len(llmCallOpts) == 0 {
+		fmt.Println("  (No specific call options like temp/max_tokens set via flags)")
+	}
 
 	fmt.Println("\nTools:")
 	for i, tool := range langchainTools {
