@@ -5,16 +5,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	// "strings" // No longer used directly
 	"testing"
 
 	"github.com/sandwichlabs/mcp-task-bridge/internal/inspector"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	// "github.com/tmc/langchaingo/llms" // No longer used directly in tests after refactor
 	"github.com/tmc/langchaingo/llms/anthropic"
 	"github.com/tmc/langchaingo/llms/openai"
-	// tools "github.com/tmc/langchaingo/tools" // tools.Tool is used as an interface type
 )
 
 // Stores captured options for newOpenAIFn or newAnthropicFn
@@ -42,7 +39,7 @@ var (
 	originalInspectFunc    func(string) (*inspector.MCPConfig, error) // Changed name
 )
 
-func setupAgentTest(t *testing.T) {
+func setupAgentTest() {
 	// Store original functions before replacing them with mocks
 	originalInspectFunc = inspector.InspectFunc // Use the new InspectFunc variable
 	originalNewOpenAIFn = newOpenAIFn
@@ -88,28 +85,17 @@ func executeCommand(root *cobra.Command, args ...string) (string, error) {
 	return buf.String(), err
 }
 
-// Helper to check if a model option was captured (simplified check)
-// This is a basic check. A real check for `WithModel("name")` would involve
-// applying the option to a dummy LLM and checking an (unexported) field, or using a more elaborate mock.
-// For now, we'll rely on the fact that our code calls openai.WithModel(modelNameFromFlags).
-func checkModelOptionCaptured(t *testing.T, opts interface{}, expectedModel string) {
-	// This is a placeholder for a more robust check if needed.
-	// The main test (TestAgentCmdFlags) will verify the *output log* which states the configured model.
-	// And it will verify that *some* options were captured.
-	// For example, if opts is []openai.Option, you could try to see if one of them sets the model field.
-	// However, the options are functions, so direct inspection of "expectedModel" is hard.
-	// assert.NotEmpty(t, opts, "Expected some LLM options to be captured")
-}
-
-
 func TestAgentCommand_RunSuccess_AnthropicDefault(t *testing.T) {
-	setupAgentTest(t)
+	setupAgentTest()
 	defer teardownAgentTest(t)
 
 	dummyTaskfile := "dummy_Taskfile.yml"
-	f, _ := os.Create(dummyTaskfile); f.Close(); defer os.Remove(dummyTaskfile)
+	f, _ := os.Create(dummyTaskfile)
+	f.Close()
+	defer os.Remove(dummyTaskfile)
 
-	testRootCmd := &cobra.Command{Use: "tmcp"}; testRootCmd.AddCommand(agentCmd)
+	testRootCmd := &cobra.Command{Use: "tmcp"}
+	testRootCmd.AddCommand(agentCmd)
 	output, err := executeCommand(testRootCmd, "agent", dummyTaskfile, "--temperature", "0.5", "--max-tokens", "150")
 	assert.NoError(t, err)
 
@@ -125,13 +111,16 @@ func TestAgentCommand_RunSuccess_AnthropicDefault(t *testing.T) {
 }
 
 func TestAgentCommand_RunSuccess_OpenAI(t *testing.T) {
-	setupAgentTest(t)
+	setupAgentTest()
 	defer teardownAgentTest(t)
 
 	dummyTaskfile := "dummy_Taskfile.yml"
-	f, _ := os.Create(dummyTaskfile); f.Close(); defer os.Remove(dummyTaskfile)
+	f, _ := os.Create(dummyTaskfile)
+	f.Close()
+	defer os.Remove(dummyTaskfile)
 
-	testRootCmd := &cobra.Command{Use: "tmcp"}; testRootCmd.AddCommand(agentCmd)
+	testRootCmd := &cobra.Command{Use: "tmcp"}
+	testRootCmd.AddCommand(agentCmd)
 	output, err := executeCommand(testRootCmd, "agent", dummyTaskfile, "--provider", "openai", "--model-name", "gpt-4-test", "--temperature", "0.2", "--max-tokens", "50")
 	assert.NoError(t, err)
 
@@ -145,40 +134,44 @@ func TestAgentCommand_RunSuccess_OpenAI(t *testing.T) {
 }
 
 func TestAgentCommand_InspectError(t *testing.T) {
-	setupAgentTest(t)
+	setupAgentTest()
 	defer teardownAgentTest(t)
 	inspector.InspectFunc = mockInspectError // Mock InspectFunc to return an error
-	testRootCmd := &cobra.Command{Use: "tmcp"}; testRootCmd.AddCommand(agentCmd)
+	testRootCmd := &cobra.Command{Use: "tmcp"}
+	testRootCmd.AddCommand(agentCmd)
 	output, _ := executeCommand(testRootCmd, "agent", "dummy.yml")
 	assert.Contains(t, output, "Failed to inspect Taskfile")
 }
 
 func TestAgentCommand_OpenAIInitError(t *testing.T) {
-	setupAgentTest(t)
+	setupAgentTest()
 	defer teardownAgentTest(t)
 	newOpenAIFn = func(opts ...openai.Option) (*openai.LLM, error) { // Mock newOpenAIFn to return an error
 		return nil, assert.AnError
 	}
-	testRootCmd := &cobra.Command{Use: "tmcp"}; testRootCmd.AddCommand(agentCmd)
+	testRootCmd := &cobra.Command{Use: "tmcp"}
+	testRootCmd.AddCommand(agentCmd)
 	output, _ := executeCommand(testRootCmd, "agent", "dummy.yml", "--provider", "openai")
 	assert.Contains(t, output, "Failed to initialize OpenAI LLM")
 }
 
 func TestAgentCommand_AnthropicInitError(t *testing.T) {
-	setupAgentTest(t)
+	setupAgentTest()
 	defer teardownAgentTest(t)
 	newAnthropicFn = func(opts ...anthropic.Option) (*anthropic.LLM, error) { // Mock newAnthropicFn
 		return nil, assert.AnError
 	}
-	testRootCmd := &cobra.Command{Use: "tmcp"}; testRootCmd.AddCommand(agentCmd)
+	testRootCmd := &cobra.Command{Use: "tmcp"}
+	testRootCmd.AddCommand(agentCmd)
 	output, _ := executeCommand(testRootCmd, "agent", "dummy.yml", "--provider", "anthropic")
 	assert.Contains(t, output, "Failed to initialize Anthropic LLM")
 }
 
 func TestAgentCommand_UnsupportedProvider(t *testing.T) {
-	setupAgentTest(t)
+	setupAgentTest()
 	defer teardownAgentTest(t)
-	testRootCmd := &cobra.Command{Use: "tmcp"}; testRootCmd.AddCommand(agentCmd)
+	testRootCmd := &cobra.Command{Use: "tmcp"}
+	testRootCmd.AddCommand(agentCmd)
 	output, _ := executeCommand(testRootCmd, "agent", "dummy.yml", "--provider", "unknown-provider")
 	assert.Contains(t, output, "Unsupported LLM provider")
 }
@@ -192,7 +185,8 @@ func TestTaskExecutorTool_Call(t *testing.T) {
 	}
 	dummyTaskContent := "version: '3'\ntasks:\n  test-exec:\n    cmds:\n      - echo \"Output for $INPUT\"\n    vars:\n      INPUT: \"default\""
 	err := os.WriteFile(tool.taskfilePath, []byte(dummyTaskContent), 0600)
-	assert.NoError(t, err); defer os.Remove(tool.taskfilePath)
+	assert.NoError(t, err)
+	defer os.Remove(tool.taskfilePath)
 
 	output, err := tool.Call(context.Background(), "INPUT=world")
 	assert.NoError(t, err)
@@ -205,7 +199,9 @@ func TestGetOpenAIToken(t *testing.T) {
 	assert.Equal(t, "env-key-openai", getOpenAIToken())
 	os.Unsetenv("OPENAI_API_KEY")
 	assert.Equal(t, "sk-your-api-key-placeholder", getOpenAIToken())
-	if originalVal != "" { os.Setenv("OPENAI_API_KEY", originalVal) } // Restore original
+	if originalVal != "" {
+		os.Setenv("OPENAI_API_KEY", originalVal)
+	} // Restore original
 }
 
 func TestGetAnthropicToken(t *testing.T) {
@@ -214,15 +210,19 @@ func TestGetAnthropicToken(t *testing.T) {
 	assert.Equal(t, "env-key-anthropic", getAnthropicToken())
 	os.Unsetenv("ANTHROPIC_API_KEY")
 	assert.Equal(t, "anthropic-api-key-placeholder", getAnthropicToken())
-	if originalVal != "" { os.Setenv("ANTHROPIC_API_KEY", originalVal) } // Restore original
+	if originalVal != "" {
+		os.Setenv("ANTHROPIC_API_KEY", originalVal)
+	} // Restore original
 }
 
 func TestAgentCmdFlags(t *testing.T) {
-	setupAgentTest(t) // Sets up mocks for LLM constructors and inspector
+	setupAgentTest() // Sets up mocks for LLM constructors and inspector
 	defer teardownAgentTest(t)
 
 	dummyTaskfile := "dummy_Taskfile.yml"
-	f, _ := os.Create(dummyTaskfile); f.Close(); defer os.Remove(dummyTaskfile)
+	f, _ := os.Create(dummyTaskfile)
+	f.Close()
+	defer os.Remove(dummyTaskfile)
 
 	testCases := []struct {
 		name             string
@@ -261,7 +261,8 @@ func TestAgentCmdFlags(t *testing.T) {
 			capturedOpenAIOptions = nil    // Reset captured options
 			capturedAnthropicOptions = nil // Reset captured options
 
-			testRootCmd := &cobra.Command{Use: "tmcp"}; testRootCmd.AddCommand(agentCmd)
+			testRootCmd := &cobra.Command{Use: "tmcp"}
+			testRootCmd.AddCommand(agentCmd)
 			output, err := executeCommand(testRootCmd, tc.args...)
 			assert.NoError(t, err)
 
