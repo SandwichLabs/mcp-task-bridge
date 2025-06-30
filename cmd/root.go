@@ -14,7 +14,11 @@ var rootCmd = &cobra.Command{
 	Long:  `tmcp is a command-line tool that evaluates a Taskfile and exposes its tasks as MCP functions.`,
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		server.Run(args[0])
+		servername, _ := cmd.Flags().GetString("name")
+		if servername == "" {
+			servername = "tasks"
+		}
+		server.Run(args[0], servername)
 	},
 }
 
