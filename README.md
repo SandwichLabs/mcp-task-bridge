@@ -103,5 +103,3 @@ go build -o tmcp .
 -   **CLI Framework:** [Cobra](https://github.com/spf13/cobra) for robust command-line interface handling.
 -   **TUI Framework:** [BubbleTea](https://github.com/charmbracelet/bubbletea) for the interactive `view` command.
 -   **MCP Library:** `github.com/mark3labs/mcp-go` for Model Context Protocol integration.
-
-Contributions are welcome! Please refer to `PLAN.md` for detailed implementation plans and `MCP_DEVELOPMENT.md` for specific development guidelines.
