@@ -49,7 +49,30 @@ func createTaskHandler(taskfilePath string) server.ToolHandlerFunc {
 	}
 }
 
-func Run(taskfilePath string, serverName string) {
+func Run(taskfilePath string, serverName string, taskBin string) {
+	if taskfilePath == "" {
+		taskfilePath = "Taskfile.yml" // Default to "Taskfile.yml"
+	}
+	if taskBin == "" {
+		taskBinary := "task" // Default to "task" binary
+	}
+
+	inspector := inspector.New(
+		inspector.WithTaskfile(taskfilePath),
+		inspector.WithTaskBin(taskBin),
+	)
+
+	// Set the task binary path if provided, otherwise default to "task"
+	if taskBin == "" {
+		taskBin = "task"
+	}
+	err := inspector.WithTaskBin(taskBin)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating inspector: %v\n", err)
+		return
+	}
+
 	config, err := inspector.Inspect(taskfilePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error inspecting Taskfile: %v\n", err)

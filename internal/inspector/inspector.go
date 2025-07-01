@@ -3,6 +3,7 @@ package inspector
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os/exec"
 	"strings"
@@ -12,7 +13,6 @@ import (
 var cmdExec = exec.Command
 
 // InspectFunc is a function variable that can be swapped out for testing.
-var InspectFunc = Inspect
 
 type TaskResult struct {
 	Name        string `json:"name"`
@@ -26,9 +26,61 @@ type TaskListResult struct {
 	Tasks []TaskResult `json:"tasks"`
 }
 
-func DiscoverTasks(taskfilePath string) ([]string, error) {
-	slog.Debug("Discovering tasks in", "path", taskfilePath)
-	cmd := cmdExec("task", "--list", "--json", "--taskfile", taskfilePath)
+type TaskInspector struct {
+	TaskfilePath string
+	TaskBinPath  string
+}
+
+type TaskInspectorService interface {
+	WithTaskfile(taskfilePath string) (*TaskInspector, error)
+	WithTaskBin(taskBinPath string) (*TaskInspector, error)
+	DiscoverTasks() ([]string, error)
+	GetTaskDetails(taskName string) (*TaskDefinition, error)
+	Inspect(taskfilePath string) (*MCPConfig, error)
+}
+
+type TaskInspectorOption func(*TaskInspector) (*TaskInspector, error)
+
+func New() *TaskInspector {
+	return &TaskInspector{
+		TaskfilePath: "Taskfile.yml", // Default to "Taskfile.yml"
+		TaskBinPath:  "task",         // Default to "task" binary
+	}
+}
+
+func (ti *TaskInspector) WithTaskfile(taskfilePath string) (*TaskInspector, error) {
+	// Validate the taskfile path
+	if taskfilePath == "" {
+		return nil, fmt.Errorf("taskfile path cannot be empty")
+	}
+	// Validate the taskfile exists
+	if _, err := exec.LookPath(taskfilePath); err != nil {
+		return nil, fmt.Errorf("taskfile not found: %s", taskfilePath)
+	}
+
+	slog.Debug("Setting taskfile path", "path", taskfilePath)
+
+	ti.TaskfilePath = taskfilePath
+	return ti, nil
+}
+
+func (ti *TaskInspector) WithTaskBin(taskBinPath string) (*TaskInspector, error) {
+
+	ti.TaskBinPath = taskBinPath
+	if ti.TaskBinPath == "" {
+		ti.TaskBinPath = "task" // Default to "task" if no path is provided
+	}
+	// Validate the task binary exists
+	if _, err := exec.LookPath(ti.TaskBinPath); err != nil {
+		return nil, fmt.Errorf("task binary not found, please install it or ensure it is available: %s", ti.TaskBinPath)
+	}
+
+	return ti, nil
+}
+
+func (ti *TaskInspector) DiscoverTasks() ([]string, error) {
+	slog.Debug("Discovering tasks in", "path", ti.TaskfilePath)
+	cmd := cmdExec(ti.TaskBinPath, "--list", "--json", "--taskfile", ti.TaskfilePath)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -53,9 +105,9 @@ func DiscoverTasks(taskfilePath string) ([]string, error) {
 	return tasks, nil
 }
 
-func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
+func (ti *TaskInspector) GetTaskDetails(taskName string) (*TaskDefinition, error) {
 	slog.Debug("Getting details for", "task", taskName)
-	cmd := cmdExec("task", taskName, "--summary", "--taskfile", taskfilePath)
+	cmd := cmdExec(ti.TaskBinPath, taskName, "--summary", "--taskfile", ti.TaskfilePath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
@@ -104,15 +156,15 @@ func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
 	return details, nil
 }
 
-func Inspect(taskfilePath string) (*MCPConfig, error) {
-	taskNames, err := DiscoverTasks(taskfilePath)
+func (ti *TaskInspector) Inspect(taskfilePath string) (*MCPConfig, error) {
+	taskNames, err := ti.DiscoverTasks()
 	if err != nil {
 		return nil, err
 	}
 
 	config := &MCPConfig{}
 	for _, taskName := range taskNames {
-		details, err := GetTaskDetails(taskfilePath, taskName)
+		details, err := ti.GetTaskDetails(taskName)
 		if err != nil {
 			return nil, err
 		}
