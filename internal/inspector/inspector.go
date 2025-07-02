@@ -10,6 +10,7 @@ import (
 
 // cmdExec is a package-level variable that can be swapped out for testing.
 var cmdExec = exec.Command
+var taskBin = "task"
 
 // InspectFunc is a function variable that can be swapped out for testing.
 var InspectFunc = Inspect
@@ -28,7 +29,7 @@ type TaskListResult struct {
 
 func DiscoverTasks(taskfilePath string) ([]string, error) {
 	slog.Debug("Discovering tasks in", "path", taskfilePath)
-	cmd := cmdExec("task", "--list", "--json", "--taskfile", taskfilePath)
+	cmd := cmdExec(taskBin, "--list", "--json", "--taskfile", taskfilePath)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -55,7 +56,7 @@ func DiscoverTasks(taskfilePath string) ([]string, error) {
 
 func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
 	slog.Debug("Getting details for", "task", taskName)
-	cmd := cmdExec("task", taskName, "--summary", "--taskfile", taskfilePath)
+	cmd := cmdExec(taskBin, taskName, "--summary", "--taskfile", taskfilePath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
@@ -104,7 +105,11 @@ func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
 	return details, nil
 }
 
-func Inspect(taskfilePath string) (*MCPConfig, error) {
+func Inspect(taskBinPath string, taskfilePath string) (*MCPConfig, error) {
+	if taskBinPath != "" {
+		taskBin = taskBinPath
+	}
+
 	taskNames, err := DiscoverTasks(taskfilePath)
 	if err != nil {
 		return nil, err

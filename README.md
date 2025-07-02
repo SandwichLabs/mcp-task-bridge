@@ -82,6 +82,16 @@ This command internally runs `inspect` and then displays the MCP configuration i
 
 ## Installation
 
+To install `tmcp`, download the latest release from the [GitHub Releases page](https://github.com/SandwichLabs/mcp-task-bridge/releases) or use the following command to install it via Go:
+
+```bash
+# Extract ze files
+tar -xzf tmcp_darwin_arm64.tar.gz
+# Move the binary to a directory in your PATH
+mv tmcp /usr/local/bin/
+
+```
+
 To install `tmcp`, ensure you have Go installed and configured.
 
 ```bash
@@ -95,6 +105,33 @@ git clone https://github.com/sandwichlabs/mcp-task-bridge.git
 cd tmcp
 go build -o tmcp .
 ```
+
+
+## Usage with Claude Code
+
+`claude mcp add my_tasks tmcp "path/to/Taskfile.yml"`
+
+## Usage sith Claude Desktop
+
+Edit the `claude-desktop` config file to add the `tmcp` command:
+
+```json
+// /Users/{you}/Library/Application Support/Claude/claude_desktop_config.json
+
+```
+mcpServers: {
+  my_tasks: {
+    "name": "tmcp",
+    "description": "Run tasks defined in Taskfile.yml",
+    "command": "tmcp",
+    "args": ["/absolute/path/to/Taskfile.yml"]
+  }
+}
+```
+
+
+Then, you can invoke tasks in Claude Desktop as:
+`Check 'my task name' for X.`
 
 ## Development
 

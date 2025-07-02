@@ -12,6 +12,8 @@ import (
 	"github.com/sandwichlabs/mcp-task-bridge/internal/inspector"
 )
 
+var taskBin = "task"
+
 func TranslateTtmcpTools(config *inspector.MCPConfig) []*mcp.Tool {
 	var tools []*mcp.Tool
 	for _, task := range config.Tasks {
@@ -33,8 +35,7 @@ func createTaskHandler(taskfilePath string) server.ToolHandlerFunc {
 		for key, value := range request.GetArguments() {
 			args = append(args, fmt.Sprintf("%s=%s", key, value))
 		}
-
-		cmd := exec.Command("task", args...)
+		cmd := exec.Command(taskBin, args...)
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		var stderr bytes.Buffer
@@ -49,8 +50,12 @@ func createTaskHandler(taskfilePath string) server.ToolHandlerFunc {
 	}
 }
 
-func Run(taskfilePath string, serverName string) {
-	config, err := inspector.Inspect(taskfilePath)
+func Run(taskfilePath string, taskBinPath string, serverName string) {
+	if taskBinPath != "" {
+		taskBin = taskBinPath
+	}
+
+	config, err := inspector.Inspect(taskBin, taskfilePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error inspecting Taskfile: %v\n", err)
 		return

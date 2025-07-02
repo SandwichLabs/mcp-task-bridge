@@ -17,12 +17,13 @@ var viewCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		taskfilePath := args[0]
+		taskBinPath, _ := cmd.Flags().GetString("task-bin")
 		if _, err := os.Stat(taskfilePath); os.IsNotExist(err) {
 			slog.Error("Taskfile not found", "path", taskfilePath)
 			os.Exit(1)
 		}
 
-		config, err := inspector.Inspect(taskfilePath)
+		config, err := inspector.Inspect(taskBinPath, taskfilePath)
 		if err != nil {
 			slog.Error("Error inspecting Taskfile", "error", err)
 			os.Exit(1)
@@ -48,5 +49,6 @@ var viewCmd = &cobra.Command{
 }
 
 func init() {
+	viewCmd.Flags().String("task-bin", "task", "Path to the task binary (default: 'task')")
 	rootCmd.AddCommand(viewCmd)
 }

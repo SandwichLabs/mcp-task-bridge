@@ -19,7 +19,7 @@ var capturedOpenAIOptions []openai.Option
 var capturedAnthropicOptions []anthropic.Option
 
 // Mock a successful inspection
-func mockInspect(taskfilePath string) (*inspector.MCPConfig, error) {
+func mockInspect(taskBin string, taskfilePath string) (*inspector.MCPConfig, error) {
 	return &inspector.MCPConfig{
 		Tasks: []inspector.TaskDefinition{
 			{Name: "test-task", Description: "A test task", Usage: "task test-task PARAM=value"},
@@ -28,7 +28,7 @@ func mockInspect(taskfilePath string) (*inspector.MCPConfig, error) {
 	}, nil
 }
 
-func mockInspectError(_ string) (*inspector.MCPConfig, error) {
+func mockInspectError(_ string, _ string) (*inspector.MCPConfig, error) {
 	return nil, assert.AnError
 }
 
@@ -36,7 +36,7 @@ func mockInspectError(_ string) (*inspector.MCPConfig, error) {
 var (
 	originalNewOpenAIFn    func(...openai.Option) (*openai.LLM, error)
 	originalNewAnthropicFn func(...anthropic.Option) (*anthropic.LLM, error)
-	originalInspectFunc    func(string) (*inspector.MCPConfig, error) // Changed name
+	originalInspectFunc    func(string, string) (*inspector.MCPConfig, error) // Changed name
 )
 
 func setupAgentTest() {

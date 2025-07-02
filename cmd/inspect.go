@@ -13,7 +13,8 @@ var inspectCmd = &cobra.Command{
 	Short: "Inspect a Taskfile and output its MCP configuration.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		config, err := inspector.Inspect(args[0])
+		taskBinPath, _ := cmd.Flags().GetString("task-bin")
+		config, err := inspector.Inspect(taskBinPath, args[0])
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
@@ -28,5 +29,6 @@ var inspectCmd = &cobra.Command{
 }
 
 func init() {
+	inspectCmd.Flags().String("task-bin", "task", "Path to the task binary (default: 'task')")
 	rootCmd.AddCommand(inspectCmd)
 }

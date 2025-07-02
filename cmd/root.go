@@ -18,8 +18,15 @@ var rootCmd = &cobra.Command{
 		if servername == "" {
 			servername = "tasks"
 		}
-		server.Run(args[0], servername)
+		taskBinPath, _ := cmd.Flags().GetString("task-bin")
+
+		server.Run(args[0], taskBinPath, servername)
 	},
+}
+
+func init() {
+	rootCmd.Flags().String("name", "", "Name of the MCP server (default: 'tasks')")
+	rootCmd.Flags().String("task-bin", "task", "Path to the task binary (default: 'task')")
 }
 
 func Execute() {
