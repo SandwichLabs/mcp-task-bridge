@@ -3,17 +3,66 @@ package inspector
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os/exec"
 	"strings"
 )
 
-// cmdExec is a package-level variable that can be swapped out for testing.
-var cmdExec = exec.Command
-var taskBin = "task"
+// Inspector is responsible for inspecting a Taskfile.
+type Inspector struct {
+	taskBinPath  string
+	taskfilePath string
+	// For improved testability, we can also include the command executor here.
+	cmdExecutor func(command string, args ...string) *exec.Cmd
+}
 
-// InspectFunc is a function variable that can be swapped out for testing.
-var InspectFunc = Inspect
+// Option is a function that configures an Inspector.
+type Option func(*Inspector)
+
+// New creates a new Inspector with the given options.
+func New(opts ...Option) (*Inspector, error) {
+	// Start with default values
+	inspector := &Inspector{
+		taskBinPath: "task",
+		cmdExecutor: exec.Command, // Default to the real exec.Command
+	}
+
+	// Apply all provided options
+	for _, opt := range opts {
+		opt(inspector)
+	}
+
+	// Validate that required options were provided
+	if inspector.taskfilePath == "" {
+		return nil, errors.New("taskfile path is required")
+	}
+
+	return inspector, nil
+}
+
+// WithTaskfile sets the path to the Taskfile.
+func WithTaskfile(path string) Option {
+	return func(i *Inspector) {
+		i.taskfilePath = path
+	}
+}
+
+// WithTaskBin sets the path to the task binary.
+func WithTaskBin(path string) Option {
+	return func(i *Inspector) {
+		i.taskBinPath = path
+	}
+}
+
+// (For Testing) withCmdExecutor sets a custom command executor.
+func withCmdExecutor(execFunc func(string, ...string) *exec.Cmd) Option {
+	return func(i *Inspector) {
+		i.cmdExecutor = execFunc
+	}
+}
+
+
 
 type TaskResult struct {
 	Name        string `json:"name"`
@@ -27,9 +76,29 @@ type TaskListResult struct {
 	Tasks []TaskResult `json:"tasks"`
 }
 
-func DiscoverTasks(taskfilePath string) ([]string, error) {
-	slog.Debug("Discovering tasks in", "path", taskfilePath)
-	cmd := cmdExec(taskBin, "--list", "--json", "--taskfile", taskfilePath)
+// Inspect runs the full inspection process.
+func (i *Inspector) Inspect() (*MCPConfig, error) {
+	taskNames, err := i.DiscoverTasks()
+	if err != nil {
+		return nil, err
+	}
+
+	config := &MCPConfig{}
+	for _, taskName := range taskNames {
+		details, err := i.GetTaskDetails(taskName)
+		if err != nil {
+			return nil, err
+		}
+		config.Tasks = append(config.Tasks, *details)
+	}
+
+	return config, nil
+}
+
+// DiscoverTasks discovers the tasks in the configured Taskfile.
+func (i *Inspector) DiscoverTasks() ([]string, error) {
+	slog.Debug("Discovering tasks in", "path", i.taskfilePath)
+	cmd := i.cmdExecutor(i.taskBinPath, "--list", "--json", "--taskfile", i.taskfilePath)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -54,9 +123,10 @@ func DiscoverTasks(taskfilePath string) ([]string, error) {
 	return tasks, nil
 }
 
-func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
+// GetTaskDetails gets the details for a specific task.
+func (i *Inspector) GetTaskDetails(taskName string) (*TaskDefinition, error) {
 	slog.Debug("Getting details for", "task", taskName)
-	cmd := cmdExec(taskBin, taskName, "--summary", "--taskfile", taskfilePath)
+	cmd := i.cmdExecutor(i.taskBinPath, taskName, "--summary", "--taskfile", i.taskfilePath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
@@ -103,26 +173,4 @@ func GetTaskDetails(taskfilePath, taskName string) (*TaskDefinition, error) {
 	}
 
 	return details, nil
-}
-
-func Inspect(taskBinPath string, taskfilePath string) (*MCPConfig, error) {
-	if taskBinPath != "" {
-		taskBin = taskBinPath
-	}
-
-	taskNames, err := DiscoverTasks(taskfilePath)
-	if err != nil {
-		return nil, err
-	}
-
-	config := &MCPConfig{}
-	for _, taskName := range taskNames {
-		details, err := GetTaskDetails(taskfilePath, taskName)
-		if err != nil {
-			return nil, err
-		}
-		config.Tasks = append(config.Tasks, *details)
-	}
-
-	return config, nil
 }

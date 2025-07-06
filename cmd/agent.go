@@ -98,7 +98,15 @@ func runAgent(cmd *cobra.Command, args []string) {
 	taskfilePath := args[0]
 	slog.Info("Starting agent command", "taskfile", taskfilePath)
 	taskBinPath, _ := cmd.Flags().GetString("task-bin")
-	mcpConfig, err := inspector.InspectFunc(taskBinPath, taskfilePath) // Use the mockable function variable
+	inspector, err := inspector.New(
+		inspector.WithTaskfile(taskfilePath),
+		inspector.WithTaskBin(taskBinPath),
+	)
+	if err != nil {
+		slog.Error("Failed to create inspector", "error", err)
+		return
+	}
+	mcpConfig, err := inspector.Inspect()
 	if err != nil {
 		slog.Error("Failed to inspect Taskfile", "error", err)
 		return

@@ -23,7 +23,15 @@ var viewCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		config, err := inspector.Inspect(taskBinPath, taskfilePath)
+		inspector, err := inspector.New(
+			inspector.WithTaskfile(taskfilePath),
+			inspector.WithTaskBin(taskBinPath),
+		)
+		if err != nil {
+			slog.Error("Error creating inspector", "error", err)
+			os.Exit(1)
+		}
+		config, err := inspector.Inspect()
 		if err != nil {
 			slog.Error("Error inspecting Taskfile", "error", err)
 			os.Exit(1)

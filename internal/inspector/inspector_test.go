@@ -23,26 +23,18 @@ func createMockTaskfile(t *testing.T, content string) string {
 	return taskfilePath
 }
 
-// Store the original cmdExec function
-var originalCmdExec = cmdExec
-
-func setupMockCmd(t *testing.T, expectedCmdSubstring string, output string, errToReturn error) {
+func newMockCmdExecutor(t *testing.T, expectedCmdSubstring string, output string, errToReturn error) func(string, ...string) *exec.Cmd {
 	t.Helper()
-	cmdExec = func(command string, args ...string) *exec.Cmd {
+	return func(command string, args ...string) *exec.Cmd {
 		cmdStr := command + " " + strings.Join(args, " ")
 		if !strings.Contains(cmdStr, expectedCmdSubstring) {
-			t.Logf("Warning: execCommand called with %s, but mock is for %s. Falling back to original behavior for this call.", cmdStr, expectedCmdSubstring)
-			// To prevent nil pointer dereference if an unexpected command is called,
-			// and to allow some flexibility if other commands are called by the functions under test
-			// that are not the primary one being mocked.
-			return originalCmdExec(command, args...)
+			t.Logf("Warning: execCommand called with %s, but mock is for %s. Falling back to real exec.", cmdStr, expectedCmdSubstring)
+			return exec.Command(command, args...)
 		}
 
 		cs := []string{"-test.run=TestHelperProcess", "--"}
-		// cs = append(cs, command) // command is already part of os.Args[0] in helper
-		// cs = append(cs, args...) // args are also part of os.Args for helper
-		cmd := originalCmdExec(os.Args[0], cs...) // Use originalCmdExec to avoid recursion if os.Args[0] is `task`
-		cmd.Env = append(os.Environ(), // Keep existing env
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = append(os.Environ(),
 			"GO_WANT_HELPER_PROCESS=1",
 			"STDOUT="+output,
 		)
@@ -53,10 +45,6 @@ func setupMockCmd(t *testing.T, expectedCmdSubstring string, output string, errT
 		}
 		return cmd
 	}
-}
-
-func teardownMockCmd() {
-	cmdExec = originalCmdExec
 }
 
 // TestHelperProcess isn't a real test. It's used as a helper for setupMockCmd.
@@ -95,11 +83,15 @@ tasks:
     desc: "This is task 2"
 `
 		taskfilePath := createMockTaskfile(t, taskfileContent)
-		setupMockCmd(t, "task --list --json", `{"tasks": [{"name": "task1", "desc": "This is task 1"}, {"name": "task2", "desc": "This is task 2"}]}`, nil)
-		defer teardownMockCmd()
+		mockExecutor := newMockCmdExecutor(t, "task --list --json", `{"tasks": [{"name": "task1", "desc": "This is task 1"}, {"name": "task2", "desc": "This is task 2"}]}`, nil)
+
+		inspector, err := New(WithTaskfile(taskfilePath), withCmdExecutor(mockExecutor))
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
 
 		expectedTasks := []string{"task1", "task2"}
-		tasks, err := DiscoverTasks(taskfilePath)
+		tasks, err := inspector.DiscoverTasks()
 
 		if err != nil {
 			t.Fatalf("DiscoverTasks() error = %v, wantErr %v", err, false)
@@ -111,10 +103,14 @@ tasks:
 
 	t.Run("task command fails", func(t *testing.T) {
 		taskfilePath := createMockTaskfile(t, "") // Content doesn't matter for this case
-		setupMockCmd(t, "task --list --json", "", fmt.Errorf("task command failed"))
-		defer teardownMockCmd()
+		mockExecutor := newMockCmdExecutor(t, "task --list --json", "", fmt.Errorf("task command failed"))
 
-		_, err := DiscoverTasks(taskfilePath)
+		inspector, err := New(WithTaskfile(taskfilePath), withCmdExecutor(mockExecutor))
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
+
+		_, err = inspector.DiscoverTasks()
 		if err == nil {
 			t.Fatalf("DiscoverTasks() error = nil, wantErr %v", true)
 		}
@@ -122,10 +118,14 @@ tasks:
 
 	t.Run("json unmarshalling fails", func(t *testing.T) {
 		taskfilePath := createMockTaskfile(t, "")
-		setupMockCmd(t, "task --list --json", `{"tasks": [{"name": "task1", "desc": "This is task 1"}`, nil) // Invalid JSON
-		defer teardownMockCmd()
+		mockExecutor := newMockCmdExecutor(t, "task --list --json", `{"tasks": [{"name": "task1", "desc": "This is task 1"}`, nil) // Invalid JSON
 
-		_, err := DiscoverTasks(taskfilePath)
+		inspector, err := New(WithTaskfile(taskfilePath), withCmdExecutor(mockExecutor))
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
+
+		_, err = inspector.DiscoverTasks()
 		if err == nil {
 			t.Fatalf("DiscoverTasks() error = nil, wantErr %v", true)
 		}
@@ -159,8 +159,12 @@ Usage: task weather ZIPCODE=<zip> ANOTHER_PARAM=value
 Required:
   ZIPCODE: The zipcode to get the weather for.
 `
-		setupMockCmd(t, "task weather --summary", mockSummaryOutput, nil)
-		defer teardownMockCmd()
+		mockExecutor := newMockCmdExecutor(t, "task weather --summary", mockSummaryOutput, nil)
+
+		inspector, err := New(WithTaskfile(taskfilePath), withCmdExecutor(mockExecutor))
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
 
 		expectedDetails := &TaskDefinition{
 			Name:        "weather",
@@ -172,7 +176,7 @@ Required:
 			},
 		}
 
-		details, err := GetTaskDetails(taskfilePath, "weather")
+		details, err := inspector.GetTaskDetails("weather")
 		if err != nil {
 			t.Fatalf("GetTaskDetails() error = %v, wantErr %v", err, false)
 		}
@@ -193,10 +197,14 @@ Required:
 
 	t.Run("task summary command fails", func(t *testing.T) {
 		taskfilePath := createMockTaskfile(t, "")
-		setupMockCmd(t, "task test-task --summary", "", fmt.Errorf("summary command failed"))
-		defer teardownMockCmd()
+		mockExecutor := newMockCmdExecutor(t, "task test-task --summary", "", fmt.Errorf("summary command failed"))
 
-		_, err := GetTaskDetails(taskfilePath, "test-task")
+		inspector, err := New(WithTaskfile(taskfilePath), withCmdExecutor(mockExecutor))
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
+
+		_, err = inspector.GetTaskDetails("test-task")
 		if err == nil {
 			t.Fatalf("GetTaskDetails() error = nil, wantErr %v", true)
 		}
@@ -218,8 +226,12 @@ task: simple
 This is just a simple task.
 It has no specific usage instructions here.
 `
-		setupMockCmd(t, "task simple --summary", mockSummaryOutput, nil)
-		defer teardownMockCmd()
+		mockExecutor := newMockCmdExecutor(t, "task simple --summary", mockSummaryOutput, nil)
+
+		inspector, err := New(WithTaskfile(taskfilePath), withCmdExecutor(mockExecutor))
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
 
 		expectedDetails := &TaskDefinition{
 			Name:        "simple",
@@ -228,7 +240,7 @@ It has no specific usage instructions here.
 			Parameters:  []TaskParameter{},
 		}
 
-		details, err := GetTaskDetails(taskfilePath, "simple")
+		details, err := inspector.GetTaskDetails("simple")
 		if err != nil {
 			t.Fatalf("GetTaskDetails() error = %v, wantErr %v", err, false)
 		}
@@ -263,8 +275,12 @@ task: usageonly
 This task has a usage line.
 Usage: task usageonly --flag
 `
-		setupMockCmd(t, "task usageonly --summary", mockSummaryOutput, nil)
-		defer teardownMockCmd()
+		mockExecutor := newMockCmdExecutor(t, "task usageonly --summary", mockSummaryOutput, nil)
+
+		inspector, err := New(WithTaskfile(taskfilePath), withCmdExecutor(mockExecutor))
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
 
 		expectedDetails := &TaskDefinition{
 			Name:        "usageonly",
@@ -273,7 +289,7 @@ Usage: task usageonly --flag
 			Parameters:  []TaskParameter{},
 		}
 
-		details, err := GetTaskDetails(taskfilePath, "usageonly")
+		details, err := inspector.GetTaskDetails("usageonly")
 		if err != nil {
 			t.Fatalf("GetTaskDetails() error = %v, wantErr %v", err, false)
 		}
@@ -292,84 +308,30 @@ Usage: task usageonly --flag
 	})
 }
 
-// TestInspect now relies on mocking the cmdExec function,
-// which DiscoverTasks and GetTaskDetails use.
 func TestInspect(t *testing.T) {
 	t.Run("successful inspection", func(t *testing.T) {
-		taskfilePath := createMockTaskfile(t, "version: '3'") // Content doesn't really matter due to mocking
+		taskfilePath := createMockTaskfile(t, "version: '3'")
 
-		// Mock for DiscoverTasks call
-		setupMockCmd(t, "task --list --json", `{"tasks": [{"name": "task1", "desc": "Desc 1"}, {"name": "task2", "desc": "Desc 2"}]}`, nil)
-		// We need to be careful here. setupMockCmd is global.
-		// The first call to cmdExec will be for DiscoverTasks.
-		// Subsequent calls will be for GetTaskDetails.
-		// This simple mock setup will apply the *last* setupMockCmd for all calls.
-		// This is a limitation of the current simple mocking strategy.
-		// For a more robust test, we would need a more sophisticated mock that can handle sequential calls
-		// or differentiate based on exact command arguments.
-
-		// For this test, we'll mock GetTaskDetails specifically for task1 and task2
-		// This means DiscoverTasks will use the mock for task2's summary, which is not ideal but will pass.
-		// A better way would be to have setupMockCmd accept a map of expectedCmd -> output, or a sequence of mocks.
-
-		// Mock for GetTaskDetails call for task1
-		// Since setupMockCmd overwrites, we need to set up mocks in the order they are NOT called or use a more complex mock.
-		// Let's try to make setupMockCmd a bit smarter or chain them carefully.
-
-		// Store original cmdExec to restore it between setups
-		originalCmdExecForInspect := cmdExec
-
-		// Define a map of expected commands to their mock outputs and exit codes
-		mockCommands := map[string]struct {
-			stdout    string
-			exitCode  string
-		}{
-			"task --list --json": {
-				stdout:   `{"tasks": [{"name": "task1"}, {"name": "task2"}]}`,
-				exitCode: "0",
-			},
-			"task1 --summary": {
-				stdout:   "task: task1\nDesc 1\nUsage: Usage 1",
-				exitCode: "0",
-			},
-			"task2 --summary": {
-				stdout:   "task: task2\nDesc 2\nUsage: Usage 2",
-				exitCode: "0",
-			},
+		mockExecutor := func(command string, args ...string) *exec.Cmd {
+			var output string
+			switch {
+			case strings.Contains(strings.Join(args, " "), "--list --json"):
+				output = `{"tasks": [{"name": "task1"}, {"name": "task2"}]}`
+			case strings.Contains(strings.Join(args, " "), "task1 --summary"):
+				output = "task: task1\nDesc 1\nUsage: Usage 1"
+			case strings.Contains(strings.Join(args, " "), "task2 --summary"):
+				output = "task: task2\nDesc 2\nUsage: Usage 2"
+			}
+			cs := []string{"-test.run=TestHelperProcess", "--"}
+			cmd := exec.Command(os.Args[0], cs...)
+			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "STDOUT="+output, "EXIT_CODE=0")
+			return cmd
 		}
 
-		// Setup cmdExec to use the mockCommands map
-		cmdExec = func(command string, args ...string) *exec.Cmd {
-			var keyToLookup string
-
-			// Check for "task --list --json"
-			// args might be: ["--list", "--json", "-d", "/path/to/dir"]
-			if len(args) >= 2 && args[0] == "--list" && args[1] == "--json" {
-				keyToLookup = command + " " + args[0] + " " + args[1] // e.g., "task --list --json"
-			}
-
-			// Check for "<taskName> --summary" called as "task <taskName> --summary"
-			// args might be: ["task1", "--summary", "-d", "/path/to/dir"]
-			// The map keys are "task1 --summary", "task2 --summary".
-			if len(args) >= 2 && command == "task" && args[1] == "--summary" {
-				// args[0] is the task name, e.g., "task1"
-				// args[1] is "--summary"
-				keyToLookup = args[0] + " " + args[1] // e.g., "task1 --summary"
-			}
-
-			if mock, ok := mockCommands[keyToLookup]; ok {
-				cs := []string{"-test.run=TestHelperProcess", "--"}
-				cmd := originalCmdExec(os.Args[0], cs...)
-				cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "STDOUT="+mock.stdout, "EXIT_CODE="+mock.exitCode)
-				return cmd
-			}
-
-			t.Logf("Unmocked command in TestInspect/successful_inspection (or mock key mismatch): command='%s', args=%v, constructed_key='%s'", command, args, keyToLookup)
-			// Fallback for any other command
-			return originalCmdExec(command, args...)
+		inspector, err := New(WithTaskfile(taskfilePath), withCmdExecutor(mockExecutor))
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
 		}
-		defer func() { cmdExec = originalCmdExecForInspect }()
-
 
 		expectedConfig := &MCPConfig{
 			Tasks: []TaskDefinition{
@@ -378,7 +340,7 @@ func TestInspect(t *testing.T) {
 			},
 		}
 
-		config, err := Inspect(taskfilePath)
+		config, err := inspector.Inspect()
 		if err != nil {
 			t.Fatalf("Inspect() error = %v, wantErr %v", err, false)
 		}
@@ -389,63 +351,48 @@ func TestInspect(t *testing.T) {
 
 	t.Run("DiscoverTasks fails", func(t *testing.T) {
 		taskfilePath := createMockTaskfile(t, "")
-		setupMockCmd(t, "task --list --json", "", fmt.Errorf("discover failed"))
-		defer teardownMockCmd()
+		mockExecutor := newMockCmdExecutor(t, "task --list --json", "", fmt.Errorf("discover failed"))
 
-		_, err := Inspect(taskfilePath)
+		inspector, err := New(WithTaskfile(taskfilePath), withCmdExecutor(mockExecutor))
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
+
+		_, err = inspector.Inspect()
 		if err == nil {
 			t.Fatalf("Inspect() error = nil, wantErr %v", true)
-		}
-		// The error returned by Inspect when DiscoverTasks fails should be the error from DiscoverTasks,
-		// which is ultimately from cmd.Run() in the mock (exit status 1).
-		if err.Error() != "exit status 1" {
-			t.Errorf("Inspect() error = %q, want %q", err.Error(), "exit status 1")
 		}
 	})
 
-	t.Run("GetTaskDetails fails for one task", func(t *testing.T) {
+		t.Run("GetTaskDetails fails for one task", func(t *testing.T) {
 		taskfilePath := createMockTaskfile(t, "")
 
-		originalCmdExecForInspect := cmdExec
-		// The "get details failed" is what we pipe to STDERR in the mock,
-		// but the actual error from cmd.Run() when exit code is 1 will be "exit status 1".
-		// The functions GetTaskDetails and Inspect will return this "exit status 1" error.
-		expectedErrFromCmd := "exit status 1"
-
-
-		cmdExec = func(command string, args ...string) *exec.Cmd {
-			cmdStr := command + " " + strings.Join(args, " ")
-			if strings.Contains(cmdStr, "task --list --json") {
-				cs := []string{"-test.run=TestHelperProcess", "--"}
-				cmd := originalCmdExec(os.Args[0], cs...)
-				cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "STDOUT="+`{"tasks": [{"name": "task1"}, {"name": "task2"}]}`, "EXIT_CODE=0")
-				return cmd
+		mockExecutor := func(command string, args ...string) *exec.Cmd {
+			var output, stderr string
+			exitCode := "0"
+			switch {
+			case strings.Contains(strings.Join(args, " "), "--list --json"):
+				output = `{"tasks": [{"name": "task1"}, {"name": "task2"}]}`
+			case strings.Contains(strings.Join(args, " "), "task1 --summary"):
+				output = "task: task1\nDesc 1\nUsage: Usage 1"
+			case strings.Contains(strings.Join(args, " "), "task2 --summary"):
+				stderr = "get details failed"
+				exitCode = "1"
 			}
-			if strings.Contains(cmdStr, "task1 --summary") { // task1 succeeds
-				cs := []string{"-test.run=TestHelperProcess", "--"}
-				cmd := originalCmdExec(os.Args[0], cs...)
-				cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "STDOUT="+"task: task1\nDesc 1\nUsage: Usage 1", "EXIT_CODE=0")
-				return cmd
-			}
-			if strings.Contains(cmdStr, "task2 --summary") { // task2 fails
-				cs := []string{"-test.run=TestHelperProcess", "--"}
-				cmd := originalCmdExec(os.Args[0], cs...)
-				// We set STDERR to "get details failed" but EXIT_CODE=1 causes cmd.Run() to return "exit status 1"
-				cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "STDOUT="+"", "STDERR="+"get details failed", "EXIT_CODE=1")
-				return cmd
-			}
-			return originalCmdExec(command, args...)
+			cs := []string{"-test.run=TestHelperProcess", "--"}
+			cmd := exec.Command(os.Args[0], cs...)
+			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "STDOUT="+output, "STDERR="+stderr, "EXIT_CODE="+exitCode)
+			return cmd
 		}
-		defer func() { cmdExec = originalCmdExecForInspect }()
 
+		inspector, err := New(WithTaskfile(taskfilePath), withCmdExecutor(mockExecutor))
+		if err != nil {
+			t.Fatalf("New() error = %v", err)
+		}
 
-		_, err := Inspect(taskfilePath)
+		_, err = inspector.Inspect()
 		if err == nil {
 			t.Fatalf("Inspect() error = nil, wantErr %v", true)
-		}
-		// The error from GetTaskDetails (which is from cmd.Run()) is returned by Inspect.
-		if err.Error() != expectedErrFromCmd {
-		    t.Errorf("Inspect() error = %q, want %q", err.Error(), expectedErrFromCmd)
 		}
 	})
 }

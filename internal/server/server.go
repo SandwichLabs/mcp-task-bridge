@@ -55,11 +55,20 @@ func Run(taskfilePath string, taskBinPath string, serverName string) {
 		taskBin = taskBinPath
 	}
 
-	config, err := inspector.Inspect(taskBin, taskfilePath)
+	inspector, err := inspector.New(
+		inspector.WithTaskfile(taskfilePath),
+		inspector.WithTaskBin(taskBinPath),
+	)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating inspector: %v\n", err)
+		return
+	}
+	config, err := inspector.Inspect()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error inspecting Taskfile: %v\n", err)
 		return
 	}
+
 
 	hooks := &server.Hooks{}
 

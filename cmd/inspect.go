@@ -14,7 +14,15 @@ var inspectCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		taskBinPath, _ := cmd.Flags().GetString("task-bin")
-		config, err := inspector.Inspect(taskBinPath, args[0])
+		inspector, err := inspector.New(
+			inspector.WithTaskfile(args[0]),
+			inspector.WithTaskBin(taskBinPath),
+		)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+		config, err := inspector.Inspect()
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
