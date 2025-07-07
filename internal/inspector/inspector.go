@@ -62,8 +62,6 @@ func withCmdExecutor(execFunc func(string, ...string) *exec.Cmd) Option {
 	}
 }
 
-
-
 type TaskResult struct {
 	Name        string `json:"name"`
 	TaskKey     string `json:"task"`
@@ -98,13 +96,15 @@ func (i *Inspector) Inspect() (*MCPConfig, error) {
 // DiscoverTasks discovers the tasks in the configured Taskfile.
 func (i *Inspector) DiscoverTasks() ([]string, error) {
 	slog.Debug("Discovering tasks in", "path", i.taskfilePath)
-	cmd := i.cmdExecutor(i.taskBinPath, "--list", "--json", "--taskfile", i.taskfilePath)
+	cmd := i.cmdExecutor(i.taskBinPath, "--list", "--json", "--verbose", "--taskfile", i.taskfilePath)
 
 	var out bytes.Buffer
+	var errOut bytes.Buffer
 	cmd.Stdout = &out
+	cmd.Stderr = &errOut // Capture stderr as well for debugging
 	err := cmd.Run()
 	if err != nil {
-		slog.Error("Error running task command", "error", err, "output", out.String())
+		slog.Error("Error running task command", "error", err, "output", out.String(), "stderr", errOut.String(), "inspectorConfig", i)
 		return nil, err
 	}
 

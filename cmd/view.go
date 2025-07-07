@@ -33,7 +33,7 @@ var viewCmd = &cobra.Command{
 		}
 		config, err := inspector.Inspect()
 		if err != nil {
-			slog.Error("Error inspecting Taskfile", "error", err)
+			slog.Error("Error inspecting Taskfile", "error", err, "inspectorConfig", inspector)
 			os.Exit(1)
 		}
 
