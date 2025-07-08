@@ -26,4 +26,3 @@ tasks:
         - "ZIPCODE"
     cmds:
       - echo "It will be sunny and awesome in {{.ZIPCODE}}"
-
