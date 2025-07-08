@@ -1,14 +1,28 @@
+# https://taskfile.dev
+
 version: '3'
 
-tasks:
-  default:
-    cmds:
-      - echo "Hello, World!"
-    desc: "Prints a greeting message."
+vars:
+  GREETING: Hello, World!
 
-  greet:
+tasks:
+  news:
+    desc: "This task will get the latest news update"
+    summary: |
+      Retrieve the latest news updates.
+      Usage: task news
+      Required: None
     cmds:
-      - echo "Greetings, {{.NAME}}!"
-    desc: "Greets a person by name."
-    vars:
-      NAME: "User"
+      - curl https://lite.cnn.com
+  weather:
+    desc: "Get the current weather forecast"
+    summary: |
+      Retrieve a weather forecast for the provided ZIPCODE.
+      Usage: task weather ZIPCODE=<zipcode here>
+      Required: ZIPCODE
+    silent: true
+    requires:
+      vars:
+        - "ZIPCODE"
+    cmds:
+      - echo "It will be sunny and awesome in {{.ZIPCODE}}"
