@@ -11,6 +11,18 @@
 
 ## How it Works
 
+`tmcp` works by inspecting a `Taskfile.yml` to discover the available tasks and their configurations. This inspection process is done by shelling out to the `task` binary itself, ensuring that `tmcp` respects the full capabilities of `task`.
+
+Here's a step-by-step breakdown of how `tmcp` creates an MCP server:
+
+1.  **Task Discovery**: `tmcp` first runs `task --list-all` to get a list of all the available tasks in the `Taskfile.yml`.
+
+2.  **Detail Extraction**: For each task discovered, `tmcp` runs `task <task_name> --summary` to extract the task's description, usage instructions, and any parameters it requires.
+
+3.  **MCP Tool Generation**: The information gathered in the previous steps is used to generate a corresponding `mcp.Tool` for each task. The task's name becomes the tool's name, the description becomes the tool's description, and the usage instructions are used to define the tool's parameters.
+
+4.  **MCP Server Creation**: Finally, `tmcp` creates an MCP server and registers all the generated tools with it. This server listens for incoming requests from AI agents.
+
 When an AI agent decides to execute a tool, `tmcp` translates the MCP tool configuration into the correct `task` command syntax and executes it.
 
 **Example:**
