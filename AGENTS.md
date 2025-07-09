@@ -121,3 +121,7 @@ The `tmcp` tool has one main system dependency:
 
 - **Go**: The Go programming language is required to build and run the project. You can find installation instructions at [https://go.dev/doc/install](https://go.dev/doc/install).
 - **task**: The `task` binary must be installed and available in the system's `PATH`. You can find installation instructions at [https://taskfile.dev/installation/](https://taskfile.dev/installation/).
+
+## Environment
+
+The current working environment has `task` and `vhs` tools installed, which are required for the `tmcp` tool to function correctly. Ensure that these tools are available in your environment before running `tmcp`.
