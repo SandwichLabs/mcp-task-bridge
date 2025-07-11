@@ -1,5 +1,11 @@
 # tmcp Task to Mcp Bridge
 
+Extremely early development 
+
+Don't use this for anything in production, I'm just noodling with MCP here.
+
+
+
 `tmcp` is a powerful Go CLI tool designed to bridge your existing `Taskfile.yml` defined shell commands with the Model Context Protocol (MCP). It allows you to expose your project's tasks as discoverable and executable tools for AI agents, leveraging `task --summary` for rich documentation.
 
 ## Why tmcp?
